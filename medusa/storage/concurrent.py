@@ -21,6 +21,7 @@ import pathlib
 import threading
 import time
 import shutil
+import zipfile
 
 from libcloud.storage.types import ObjectDoesNotExistError
 from retrying import retry
