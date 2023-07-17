@@ -26,6 +26,7 @@ from retrying import retry
 
 import medusa
 import base64
+import io
 
 MAX_UPLOAD_RETRIES = 5
 
