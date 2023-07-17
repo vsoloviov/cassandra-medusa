@@ -99,15 +99,6 @@ def __upload_file(storage, connection, src, dest, bucket):
     if not isinstance(src, pathlib.Path):
         src = pathlib.Path(src)
 
-    # Archive the source file
-    logging.info("Src file: {}".format(src))
-    archive_path = str(src) + '.zip'
-    logging.info("Archiv1e path: {}".format(archive_path))
-    shutil.make_archive(archive_path, 'zip', str(src.parent), src.name)
-
-    # Use the archived file as the source for uploading
-    src = pathlib.Path(archive_path)
-
     file_size = os.stat(str(src)).st_size
     logging.info("Uploading {} ({})".format(src, human_readable_size(file_size)))
     # check if objects reside in a sub-folder (e.g., secondary index). if they do, use the sub-folder in the object path
@@ -115,21 +106,27 @@ def __upload_file(storage, connection, src, dest, bucket):
     full_object_name = str("{}/{}".format(dest, obj_name))
     obj = _upload_single_part(storage, connection, src, bucket, full_object_name)
 
-    # Remove the temporary archive file
-    os.remove(archive_path)
-
     return medusa.storage.ManifestObject(obj.name, obj.size, obj.hash.replace('"', ''))
 
 @retry(stop_max_attempt_number=MAX_UPLOAD_RETRIES, wait_fixed=5000)
 def _upload_single_part(storage, connection, src, bucket, object_name):
+    # Create a temporary ZIP archive of the source file
+    zip_path = str(src) + '.zip'
+    with zipfile.ZipFile(zip_path, 'w') as zip_file:
+        zip_file.write(str(src), arcname=src.name)
+
+    # Upload the ZIP archive
     headers = storage.additional_upload_headers()
-    with open(str(src), 'rb') as iterator:
+    with open(zip_path, 'rb') as iterator:
         obj = connection.upload_object_via_stream(
             iterator,
             container=bucket,
             object_name=object_name,
             headers=headers
         )
+
+    # Remove the temporary ZIP archive
+    os.remove(zip_path)
 
     return obj
 
