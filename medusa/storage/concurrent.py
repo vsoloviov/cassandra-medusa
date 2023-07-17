@@ -20,6 +20,7 @@ import os
 import pathlib
 import threading
 import time
+import shutil
 
 from libcloud.storage.types import ObjectDoesNotExistError
 from retrying import retry
@@ -98,15 +99,26 @@ def __upload_file(storage, connection, src, dest, bucket):
     if not isinstance(src, pathlib.Path):
         src = pathlib.Path(src)
 
+    # Archive the source file
+    logging.info("Src file: {}".format(src))
+    archive_path = str(src) + '.zip'
+    logging.info("Archive path: {}".format(archive_path))
+    shutil.make_archive(archive_path, 'zip', str(src.parent), src.name)
+
+    # Use the archived file as the source for uploading
+    src = pathlib.Path(archive_path)
+
     file_size = os.stat(str(src)).st_size
     logging.info("Uploading {} ({})".format(src, human_readable_size(file_size)))
-    # check if objects resides in a sub-folder (e.g. secondary index). if it does, use the sub-folder in object path
+    # check if objects reside in a sub-folder (e.g., secondary index). if they do, use the sub-folder in the object path
     obj_name = '{}/{}'.format(src.parent.name, src.name) if src.parent.name.startswith('.') else src.name
     full_object_name = str("{}/{}".format(dest, obj_name))
     obj = _upload_single_part(storage, connection, src, bucket, full_object_name)
 
-    return medusa.storage.ManifestObject(obj.name, obj.size, obj.hash.replace('"', ''))
+    # Remove the temporary archive file
+    os.remove(archive_path)
 
+    return medusa.storage.ManifestObject(obj.name, obj.size, obj.hash.replace('"', ''))
 
 @retry(stop_max_attempt_number=MAX_UPLOAD_RETRIES, wait_fixed=5000)
 def _upload_single_part(storage, connection, src, bucket, object_name):
@@ -162,12 +174,23 @@ def __download_blob(connection, src, dest, bucket_name):
         else:
             file_name = blob.name
 
-        with open("{}/{}".format(blob_dest, file_name), "wb") as file_handle:
+        # Download the file
+        file_path = "{}/{}".format(blob_dest, file_name)
+        with open(file_path, "wb") as file_handle:
             for chunk in blob.as_stream():
                 file_handle.write(chunk)
+
+        # Check if the file is an archive and de-archive it
+        if shutil.get_archive_formats():
+            archive_formats = [format[0] for format in shutil.get_archive_formats()]
+            file_extension = pathlib.Path(file_path).suffix[1:]
+            if file_extension in archive_formats:
+                dearchive_path = pathlib.Path(file_path).parent / pathlib.Path(file_name).stem
+                shutil.unpack_archive(file_path, dearchive_path)
+                os.remove(file_path)
+
     except ObjectDoesNotExistError:
         return None
-
 
 def human_readable_size(size, decimal_places=3):
     for unit in ['B', 'KiB', 'MiB', 'GiB', 'TiB']:
