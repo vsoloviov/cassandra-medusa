@@ -102,7 +102,7 @@ def __upload_file(storage, connection, src, dest, bucket):
     # Archive the source file
     logging.info("Src file: {}".format(src))
     archive_path = str(src) + '.zip'
-    logging.info("Archive path: {}".format(archive_path))
+    logging.info("Archiv1e path: {}".format(archive_path))
     shutil.make_archive(archive_path, 'zip', str(src.parent), src.name)
 
     # Use the archived file as the source for uploading
