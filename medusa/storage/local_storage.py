@@ -16,6 +16,7 @@
 import datetime
 import pathlib
 import base64
+import logging
 
 from libcloud.storage.drivers.local import LocalStorageDriver
 
@@ -60,19 +61,17 @@ class LocalStorage(AbstractStorage):
 
     @staticmethod
     def file_matches_cache(src, cached_item, threshold=None, enable_md5_checks=False):
-        # Decrypt the file if it is base64 encoded
+        # Encrypt the file with base64 encoding
         with open(str(src), 'rb') as file:
             file_content = file.read()
-            try:
-                decrypted_content = base64.b64decode(file_content)
-            except base64.binascii.Error:
-                # If the file is not base64 encoded, use the original content
-                decrypted_content = file_content
+            encrypted_content = base64.b64encode(file_content)
 
-        decrypted_size = len(decrypted_content)
+        encrypted_size = len(encrypted_content)
+
+        logging.Info("Comparing encrypted size {} with cached item size {}".format(encrypted_size, cached_item['size']))
 
         return LocalStorage.compare_with_manifest(
-            actual_size=decrypted_size,
+            actual_size=encrypted_size,
             size_in_manifest=cached_item['size']
         )
 
