@@ -68,7 +68,7 @@ class LocalStorage(AbstractStorage):
 
         encrypted_size = len(encrypted_content)
 
-        logging.Info("Comparing encrypted size {} with cached item size {}".format(encrypted_size, cached_item['size']))
+        logging.info("Comparing encrypted size {} with cached item size {}".format(encrypted_size, cached_item['size']))
 
         return LocalStorage.compare_with_manifest(
             actual_size=encrypted_size,
