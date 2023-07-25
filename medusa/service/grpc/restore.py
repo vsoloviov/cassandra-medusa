@@ -82,7 +82,7 @@ def restore_backup(in_place, config):
     keep_auth = False if in_place else True
     seeds = None
     verify = False
-    keyspaces = {}
+    keyspaces = ['tutorial']
     tables = {}
     use_sstableloader = False
 
