@@ -1,32 +1,6 @@
-FROM ubuntu:18.04 as base
+FROM vsoloviovindocker/medusa-base:1 as base
 
-RUN mkdir /install
 WORKDIR /install
-
-RUN apt-get update && \
-    apt-get install -y software-properties-common curl gnupg
-
-RUN add-apt-repository ppa:kalon33/gamesgiroll -y
-
-RUN apt-get update \
-    && DEBIAN_FRONTEND="noninteractive" apt-get install -y \
-        debhelper \
-        dh-python \
-        python3-all \
-        python3-all-dev \
-        python3-dev \
-        python-dev \
-        python-pip \
-        python3-pip \
-        python3-setuptools \
-        python3-venv \
-        build-essential \
-        devscripts \
-        dh-virtualenv \
-        equivs \
-        wget \
-        apt-transport-https \
-        ca-certificates
 
 ENV PATH=/root/.local/bin:$PATH
 

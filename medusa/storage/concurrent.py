@@ -25,6 +25,8 @@ from libcloud.storage.types import ObjectDoesNotExistError
 from retrying import retry
 
 import medusa
+import base64
+import io
 
 MAX_UPLOAD_RETRIES = 5
 
@@ -112,15 +114,24 @@ def __upload_file(storage, connection, src, dest, bucket):
 def _upload_single_part(storage, connection, src, bucket, object_name):
     headers = storage.additional_upload_headers()
     with open(str(src), 'rb') as iterator:
+        # Read the file content
+        file_content = iterator.read()
+
+        # Encrypt the file content using base64 encoding
+        encrypted_content = base64.b64encode(file_content)
+
+        # Create a file-like object from the encrypted content
+        encrypted_iterator = io.BytesIO(encrypted_content)
+
+        # Upload the encrypted file via stream
         obj = connection.upload_object_via_stream(
-            iterator,
+            encrypted_iterator,
             container=bucket,
             object_name=object_name,
             headers=headers
         )
 
     return obj
-
 
 def download_blobs(storage, src, dest, bucket_name, max_workers=None):
     """
@@ -165,9 +176,23 @@ def __download_blob(connection, src, dest, bucket_name):
         with open("{}/{}".format(blob_dest, file_name), "wb") as file_handle:
             for chunk in blob.as_stream():
                 file_handle.write(chunk)
+
+        # Decrypt the downloaded file if it is base64 encoded
+        decrypted_file_path = "{}/{}".format(blob_dest, file_name)
+        with open(decrypted_file_path, "rb") as encrypted_file:
+            encrypted_content = encrypted_file.read()
+
+            # Check if the file is base64 encoded
+            try:
+                decrypted_content = base64.b64decode(encrypted_content)
+            except base64.binascii.Error:
+                # If the file is not base64 encoded, skip decryption
+                decrypted_content = encrypted_content
+
+        with open(decrypted_file_path, "wb") as decrypted_file:
+            decrypted_file.write(decrypted_content)
     except ObjectDoesNotExistError:
         return None
-
 
 def human_readable_size(size, decimal_places=3):
     for unit in ['B', 'KiB', 'MiB', 'GiB', 'TiB']:
